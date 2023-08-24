@@ -2,6 +2,8 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
+#include "shader.h"
+
 using namespace std;
 
 float vertices[] = {
@@ -25,31 +27,6 @@ float secondTri[] = {
 	0.9f, -0.5f, 0.0f,
 	0.45f, 0.5f, 0.0f,
 };
-
-int success;
-char infoLog[512];
-
-const char* vertexShaderSource = "#version 330 core\n"
-"layout (location = 0) in vec3 aPos;\n"
-"void main()\n"
-"{\n"
-"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-"}\0";
-
-const char* fragmentShaderSource = "#version 330 core\n"
-"out vec4 FragColor;\n"
-"void main()\n"
-"{\n"
-"   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-"}\n\0";
-
-const char* secondFragmentShaderSource = "#version 330 core\n"
-"out vec4 FragColor;\n"
-"void main()\n"
-"{\n"
-"   FragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);\n"
-"}\n\0";
-
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -77,66 +54,9 @@ int main() {
 		return -1;
 	}
 
-	unsigned int vertexShader, fragmentShader, secondFragmentShader;
-	//VertexShader
-	vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-	glCompileShader(vertexShader);
-	//VertexShader compile log
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-		cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << endl;
-	}
-
-	//FragmentShader
-	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-	glCompileShader(fragmentShader);
-	//FragmentShader Compile Log
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-		cout << "ERROR::SHADER::FRAMGENT::COMILATION_FAILED\n" << infoLog << endl;
-	}
-
-	//Second FragmentShader
-	secondFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &secondFragmentShaderSource, NULL);
-	glCompileShader(secondFragmentShader);
-	//secondFragmentShader Compile Log
-	glGetShaderiv(secondFragmentShader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		glGetShaderInfoLog(secondFragmentShader, 512, NULL, infoLog);
-		cout << "ERROR::SHADER::FRAMGENT2::COMILATION_FAILED\n" << infoLog << endl;
-	}
-
-	//ShaderProgram
-	unsigned int shaderProgram, secondShaderProgram;
-	shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
-	//ShaderProgram Log
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-	if (!success) {
-		glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-		cout << "ERROR::SHADER::PROGRAM::COMILATION_FAILED\n" << infoLog << endl;
-	}
-
-	secondShaderProgram = glCreateProgram();
-	glAttachShader(secondShaderProgram, vertexShader);
-	glAttachShader(secondShaderProgram, secondFragmentShader);
-	glLinkProgram(secondShaderProgram);
-	glGetProgramiv(secondShaderProgram, GL_LINK_STATUS, &success);
-	if (!success) {
-		glGetProgramInfoLog(secondShaderProgram, 512, NULL, infoLog);
-		cout << "ERROR::SHADER::PROGRAM2::COMILATION_FAILED\n" << infoLog << endl;
-	}
-	////불필요한 리소스 삭제
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
-	glDeleteShader(secondFragmentShader);
+	//Shader shader("./triangle.vs", "./triangleOrange.fs");
+	//Shader vertexColorShader("./triangle.vs", "./triangleVertexColor.fs");
+	Shader uniformShader("./triangle.vs", "./triangleUniform.fs");
 
 	////Vertex Buffer Object(VBO), Vertex Array Object 설정
 	//unsigned int VAO, VBO, EBO; //Vertex Buffer Object, Vertex Array Object, Element Buffer Object
@@ -158,7 +78,7 @@ int main() {
 	glBindVertexArray(VAOs[0]);
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(firstTri), firstTri, GL_STATIC_DRAW);
-	//정점 속성 연결
+	//정점 속성 연결(first triangle)
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 
@@ -166,7 +86,7 @@ int main() {
 	glBindVertexArray(VAOs[1]);
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[1]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(secondTri), secondTri, GL_STATIC_DRAW);
-	//정점 속성 연결
+	//정점 속성 연결(second triangle)
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 	glEnableVertexAttribArray(0);
 	
@@ -178,12 +98,18 @@ int main() {
 
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+
+		//shader.use();
+		//vertexColorShader.use();
+		uniformShader.use();
 		
-		glUseProgram(secondShaderProgram);
+		float timeValue = glfwGetTime();
+		float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
+		uniformShader.setFloat("ourColor", 0.0f, greenValue, 0.0f, 1.0f);
+
 		glBindVertexArray(VAOs[0]);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
-		//glUseProgram(secondShaderProgram);
 		glBindVertexArray(VAOs[1]);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -196,8 +122,6 @@ int main() {
 	glDeleteBuffers(1, &VBO);*/
 	glDeleteVertexArrays(2, VAOs);
 	glDeleteBuffers(2, VBOs);
-	glDeleteProgram(shaderProgram);
-	glDeleteProgram(secondShaderProgram);
 
 	glfwTerminate();
 	return 0;
